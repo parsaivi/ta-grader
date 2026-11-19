@@ -22,9 +22,9 @@ order, which is calibrated to nothing.
 **Every override is evidence and must be kept.**  The old reviewer overwrote
 `final_grade` in place, which destroyed the model's original judgement and with
 it any chance of measuring accuracy later. Decisions are appended to a JSONL
-ledger holding before, after, reason and timestamp. That ledger is the golden
-set from doc 11 Stage 0, accumulating for free over a term, and the input to
-confidence calibration.
+ledger holding before, after, reason and timestamp. That ledger is a
+hand-checked calibration set, accumulating for free over a term, and the
+input to confidence calibration.
 
 Three invariants from the grading side are load-bearing here too, because a
 review tool can violate them just as easily as a grader can:
@@ -36,7 +36,7 @@ review tool can violate them just as easily as a grader can:
 - Results are written atomically (ADR-010). The reviewer writes the same file a
   background grader run may be appending to; a plain truncating write can lose a
   whole class.
-- A single model's opinion is never presented as an agreed result (ADR-001/005).
+- A single model's opinion is never presented as an agreed result (ADR-001, ADR-005).
   A `single_model` run has nothing to cross-check, and the queue says so rather
   than displaying a second grader's empty column as if it had agreed.
 """
@@ -207,8 +207,8 @@ class ReviewItem:
             return 0.9
 
         # Disagreement, whether between two models or between one model and
-        # itself, is measured against the same yardstick -- which is the point
-        # of doc 12 Sec 1a: a 20-point self-disagreement and a 20-point
+        # itself, is measured against the same yardstick: a 20-point
+        # self-disagreement and a 20-point
         # cross-model disagreement mean the same thing about the grade.
         scale = max(1, conflict_limit * 2)
         signals = [0.0]
@@ -259,7 +259,7 @@ class ReviewItem:
 
     def priority(self, conflict_limit: int = 10) -> float:
         """
-        Queue position. `uncertainty x marks_at_stake`, doc 12 Sec 1f.
+        Queue position: `uncertainty x marks_at_stake`.
 
         A contested grade on a 20-mark part matters ten times more than a
         contested one on a 2-mark part, and neither has anything to do with the
@@ -319,7 +319,7 @@ def cited_pages(text: str) -> List[int]:
     Worth parsing because it is the difference between a reviewer paging through
     a 17-page scan and landing on the right page immediately. It is also a check
     in its own right: a model citing page 4 for an answer that is on page 9 was
-    not reading the pages (doc 12 Sec 5d).
+    not reading the pages.
     """
     pages: List[int] = []
     for match in _PAGE_MENTION.finditer(text or ""):
@@ -558,7 +558,7 @@ class ReviewSession:
 
     The ledger is separate and append-only because it is the only artifact here
     with value beyond the round: it is a growing set of human-corrected grades,
-    which is the ground truth this project has never had (doc 11 Stage 0).
+    which is the ground truth needed to measure accuracy at all.
     """
 
     def __init__(self, path: str, reviewer: str = ""):
@@ -832,7 +832,7 @@ class ReviewSession:
 
     def sign_off(self, note: str = "") -> Dict[str, Any]:
         """
-        A human accepting the batch. Doc 12 Sec 6c: assistant, not authority.
+        A human accepting the batch: assistant, not authority.
 
         Export is gated on this, so "the TA is the author of record" is a step
         someone takes rather than a sentence in a README.
@@ -867,7 +867,7 @@ class ReviewSession:
         someone who does not trust the model at all: two students wrote the same
         query and got different marks, or they did not.
 
-        This is the cheap version of doc 12 Sec 4c. The full version compares
+        This is the cheap version of a consistency audit. The full version compares
         transcriptions, which do not exist yet; this compares the verbatim
         EVIDENCE quotes, which do -- on any run made after `assurance.py`
         landed. On older files it finds nothing and says so rather than

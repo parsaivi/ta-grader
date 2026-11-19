@@ -1313,8 +1313,8 @@ def show_blind(session: ReviewSession, item: ReviewItem) -> None:
     it produces cannot be used to measure how accurate the model is -- they were
     made by someone who had already read its answer.
 
-    Doc 11 Stage 0 asks for 30 submissions hand-graded *before* looking at the
-    model's grades, as a one-week project. This is that project, running inside
+    Measuring accuracy needs submissions hand-graded *before* looking at the
+    model's grades. This collects them inside
     the work the TA had to do anyway: mark blind, commit, then reveal. The
     ledger records both numbers, and the difference between them is the accuracy
     figure this project has never had and which everything downstream waits on.

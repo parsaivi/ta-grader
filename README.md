@@ -1,451 +1,220 @@
-# 📝 AI Homework Grader
+# ta-grader
 
-Grades student homework PDFs with two LLMs and flags every case where they
-disagree, so you only hand-review the submissions that actually need judgement.
+Grade homework PDFs with two LLMs and review only the answers they disagree on.
 
-Built for Persian/English CE coursework, where submissions are a mix of typed
-Persian, handwriting, and hand-drawn diagrams.
+Both models grade every answer against your marking scheme. Where they agree,
+the grade is filled in. Where they disagree, can't read the page, or can't
+quote the student's work to back up a grade, the answer goes to a review queue
+for a TA. Nothing reaches a student until a TA signs off the batch.
 
-## Three ways to grade
+It reads typed and handwritten submissions in any language you add a
+[locale pack](docs/adding-a-language.md) for. It was built for Persian/English
+computer engineering homework, where a class hands in a mix of typed Persian,
+handwriting and hand-drawn diagrams, and has graded real rounds of 81 and 119
+students.
 
-| | `hybrid_grader.py` (recommended) | `vision_grader.py` | `pipeline.py` (text) |
-|---|---|---|---|
-| How | Routes each student to whichever works | PDF pages → vision models | Extract → split → grade text |
-| Handles handwriting | Yes, automatically | Yes | No — grades them blank |
-| Cost | Low: vision only where needed | Highest | Lowest |
-
-**Use `hybrid_grader.py`.** The text route is ~15× cheaper but silently scores
-handwritten submissions as blank; the vision route reads anything but costs
-more on every page. The hybrid checks each PDF first and sends only the
-unreadable ones to vision.
-
-On a real batch of 119 submissions, 115 went the cheap text route and 4 needed
-vision — so you pay vision prices for 3% of the class instead of all of it,
-and nobody gets a silent zero.
+## Try it in two minutes
 
 ```bash
-# Free preview of what would go where
-python hybrid_grader.py --question 8 --dry-run
+pip install "ta-grader[review] @ git+https://github.com/parsaivi/ta-grader"
+ta-grader demo            # a synthetic course: 7 invented students
+cd ta-grader-demo
+ta-grader route -q 1      # free: which PDFs can be read as text, which need vision
 ```
 
 ```
-Routing 119 submissions:
-  text route   : 115
-  vision route : 4
+Routing 7 submissions:
+  text route   : 6
+  vision route : 1
 
 Going to the vision grader:
-  HW2T-400000002    only 0 chars/page -- handwritten or scanned
-  HW2T_400000001    text extracted but splitter found only 0/10 answers
-  ...
+  S1007        only 0 chars/page -- handwritten or scanned
 ```
 
-Two independent checks decide the route:
-
-1. **Before extraction** — characters per page. Typed work in this course runs
-   1000–3000; below `MIN_CHARS_PER_PAGE` (400) the PDF is scanned or handwritten.
-2. **After splitting** — if the splitter located answers for fewer than
-   `MIN_ANSWERED_FRACTION` (25%) of questions, the text extracted but is not
-   usable, so that student goes to vision too.
-
-Every result records which route produced it, in a `"route"` field.
-
-## How the dual-model check works
-
-Both models grade every question independently. Then:
-
-- **Grades within `GRADE_CONFLICT_LIMIT` (default 10)** → resolved automatically
-  (by default the higher grade; see `GRADE_RESOLUTION`).
-- **Grades further apart than that** → flagged for review.
-- **One model failed to answer** → flagged for review. The surviving grade is
-  recorded but never treated as an agreed result, because nothing cross-checked it.
-- **Both models failed** → grade left as `null` and flagged. It is deliberately
-  *not* recorded as 0, which would be indistinguishable from a real zero.
-
-You resolve everything flagged in the review UI.
-
-## Quick start
+To grade the demo for real, put an [OpenRouter](https://openrouter.ai) key (or
+any OpenAI-compatible endpoint's key) in `.env` and run:
 
 ```bash
-# 1. Install
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-
-# 2. Add your API key
-cp .env.example .env
-# then edit .env and paste your OpenRouter key
-
-# 3. Put student PDFs in students_pdf/ and marking schemes in answers/
-
-# 4. Grade
-.venv/bin/python vision_grader.py --question 8
-
-# 5. Review whatever got flagged
-.venv/bin/streamlit run review_app.py
+ta-grader grade --route vision -q 1   # a few cents for the class
+ta-grader review                      # opens the review console
 ```
 
-### Layout
+## Grading your own course
 
-```
-TA project/
-├── students_pdf/           ← INPUT: student PDFs, filename = student ID
-│   ├── 400000003.pdf
-│   └── ...
-├── students_pdf_hw3/       ← INPUT: per-assignment folders work too
-├── answers/                ← INPUT: your marking schemes
-│   ├── correct_answer_1.md
-│   └── ...
-├── postures/               ← the marginal-call rules (lenient/standard/strict)
-├── tagsets/                ← descriptive label vocabularies; never affect a mark
-├── .streamlit/config.toml  ← the review console's pinned theme
-├── students_extracted/     ← auto-generated by the text route
-├── questions/question_N/   ← auto-generated by the text route
-├── .env                    ← your API key
-├── grades_question_N.json  ← OUTPUT: the marks
-├── grades_question_N.review.jsonl   ← OUTPUT: the decision ledger
-└── grades_question_N.review.json    ← review state: weights, sign-off
+```bash
+ta-grader init algorithms-fall
+cd algorithms-fall
 ```
 
-Everything holding student data is gitignored, the ledger included — it is the
-most sensitive file here, carrying student IDs, both marks, and verbatim quotes
-from the student's own work.
+This makes a workspace:
 
-**Student PDFs:** name each file with the student's ID. The stem becomes the
-`student_id` in the output.
+```
+algorithms-fall/
+├── course.toml     settings: languages, models, posture, points per question
+├── rubrics/q1.md   one marking scheme per question
+├── submissions/    one PDF per student; the filename is the student id
+├── results/        grades and the review ledger
+└── .env            LLM_KEY=...  (never shared, never committed)
+```
 
-**Answer files:** one per question. `\question` and `\answer` are both optional —
-a file with neither is treated as entirely the answer.
+`course.toml` is meant to be shared between the TAs of a course. The API key
+is never read from it. Everything holding student data (`submissions/`,
+`results/`, `.env`) is in the workspace's `.gitignore`, and the workspace is
+separate from this code, so student work cannot end up in a commit to this
+repository.
+
+A marking scheme is a Markdown file. The `\question` and `\answer` markers are
+optional:
 
 ```markdown
 \question
-What is the derivative of x²?
+What is the worst-case running time of selection sort? Explain.
 
 \answer
-The derivative of x² is 2x.
-Using the power rule: d/dx[xⁿ] = n·xⁿ⁻¹
+O(n^2): (n-1) + (n-2) + ... + 1 = n(n-1)/2 comparisons.
+- 50: states O(n^2)
+- 50: justifies it with the sum, or an equivalent argument
 ```
 
-## Commands
+The more explicit the mark allocation, the less the two models disagree.
 
-### Grading (vision route)
+Then:
 
 ```bash
-# One question for everyone
-python vision_grader.py --question 8
-
-# All questions in a single pass per model
-python vision_grader.py --num-questions 10
-
-# Different models
-python vision_grader.py -q 8 --model-1 openai/gpt-5.4-nano --model-2 google/gemini-2.5-flash-lite
-
-# Stricter conflict threshold, average instead of "take the higher"
-python vision_grader.py -q 8 --conflict-limit 5 --resolution mean
-
-# Sharper page images for messy handwriting (costs more)
-python vision_grader.py -q 8 --dpi 200
-
-# State how to make the marginal calls: which band a borderline answer gets,
-# whether a nearly-right answer is full marks, whether syntax slips cost.
-# These DO affect grades, and the full set of choices is recorded in the output.
-python vision_grader.py -q 2 --parts a,b,c --posture strict
-
-# Grade each submission 3x and report the spread as a confidence. A part that
-# scores 20, 40, 20 across three runs is not a grade of 40 in any useful sense.
-python vision_grader.py -q 2 --parts a,b,c --samples 3
+ta-grader route -q 1                     # free preview of the routing
+ta-grader grade -q 1                     # hybrid route (cheapest)
+ta-grader grade --route vision -q 1 --parts a,b --posture strict --samples 3
+ta-grader review                         # resolve what was flagged, then sign off
+ta-grader export results/grades_question_1_parts.json   # CSV, only after sign-off
 ```
 
-### Grading (text route)
+Every option is in [docs/configuration.md](docs/configuration.md).
 
-```bash
-# Step 1 - extract. --smart-extract keeps text as text and only pays for images.
-python pipeline.py --step extract --pdf-folder students_pdf --smart-extract
+## How a grade is made
 
-# Step 2 - split into per-question files
-python pipeline.py --step split --num-questions 10
+**Two models, one conflict limit.** Both models grade each answer from 0 to
+100. If their grades are within `conflict_limit` (default 10), the grade is
+resolved automatically (`resolution`: max, mean or min). If they are further
+apart, or one model returned nothing, the answer is flagged. If both failed,
+the grade is left `null` and flagged.
 
-# Step 3 - grade one question
-python pipeline.py --step grade --question 8
+**A missing grade is not a zero.** `0` means the student got it wrong. `null`
+means there is no grade. A page that did not scan, an answer the model could
+not read (`illegible`), or a part it could not find (`not_found`) records
+`null` and goes to review. Exports write it as an empty cell.
 
-# Or all three at once
-python pipeline.py --step all --num-questions 10 --question 8 --smart-extract
-```
+**Every grade quotes the work.** On the vision route each part carries a
+verbatim quote of the line its grade turns on. A missing quote, or one that
+comes from the marking scheme instead of the submission, is flagged. That is
+how a model reciting the answer key gets caught. One model once said a student
+used no CTEs when the whole answer was built on one.
 
-### Reviewing
+**Confidence is measured.** `--samples 3` grades each submission three times
+and reports the spread. The final grade is the median. Models are not
+deterministic at temperature 0: one submission scored 40, then 20, on a re-run
+of the same model.
 
-```bash
-streamlit run review_app.py              # the review console
-python conflict_reviewer.py --question 8 # older terminal UI, single-question files only
-```
+**The marginal calls are stated.** A posture (`lenient`, `standard`,
+`strict`, or your own file) decides what the marking scheme leaves open:
+which band a borderline answer gets, whether a nearly-right answer gets full
+marks, whether a syntax slip costs anything. It is written in full into every
+prompt and recorded with the results.
 
-The console turns a results file into a queue of decisions, one student at a
-time, ordered by `uncertainty x marks_at_stake` rather than by student ID — so
-the grade most likely to be wrong by the most marks is the first one you see.
+The reasons behind each of these rules are in [docs/design.md](docs/design.md).
 
-The screen is two columns and a bar:
+## Three routes
 
-- **Left, pinned:** the whole submission as one scrolling document, opened on
-  the page the model cited and ringed there in the accent colour. `←`/`→` move
-  a page at a time; the scroll position survives a decision.
-- **Docked under the page:** the verbatim quote the grade turns on, against the
-  work it claims to quote. Its top border turns amber when the quote could not
-  be found in the submission — the signature of a model reciting the answer key.
-- **Right:** the flags, the model grades, and the paragraph of reasoning that
-  concerns *this* part. Every part of the student is a chip in the header,
-  coloured by its mark, so the state of the other parts is never hidden behind
-  a tab.
-- **Bottom, always reachable:** the decision bar. Quick picks fill the grade
-  field rather than committing it, so a mis-click is not a decision. `Accept N`
-  is one keystroke. `Withhold` records a deliberate null, never a zero.
-
-Nothing needs the mouse:
-
-| key | does | key | does |
+| | `--route hybrid` (default) | `--route vision` | `--route text` |
 |---|---|---|---|
-| `J` `K` | part | `N` `P` | student |
-| `0-9` | type a grade | `⏎` | accept the model's grade |
-| `⌘⏎` | set the grade you typed | `⇧A` | accept every graded part on this student |
-| `W` | withhold | `←` `→` | page |
-| `F1`–`F6` | quick pick | `?` / `⌘K` | the full list |
+| How | Routes each student to text or vision | PDF pages to vision models | Extract, split, grade text |
+| Handwriting | Yes, automatically | Yes | No: scored as blank |
+| Parts, quotes, posture, samples | No | **Yes** | No |
+| Cost | Lowest that is safe | Highest | Lowest |
 
-Every shortcut is also a visible button — the keycaps in the decision bar are
-how they are meant to be found.
+The hybrid route checks each PDF first. A PDF with fewer than 400 extracted
+characters per page, or one the splitter could not divide into answers, goes
+to vision. On a real class of 119, 115 went the text route and 4 went to
+vision, so nobody's handwriting was graded as blank.
 
-**Cohort** is the whole class as a grid, and clicking any cell opens that part
-in Triage. **Fairness** lists pairs of submissions whose evidence quotes are
-near-identical but whose marks are not — grading errors by definition, needing
-neither ground truth nor any trust in the model — and its student IDs are links
-into Triage as well.
+Per-part grading, evidence quotes, postures and sampling run on the vision
+route only. Use it when those matter more than the cost.
 
-The theme is pinned in `.streamlit/config.toml`. Without it Streamlit follows
-the browser's dark-mode setting and renders near-white text on the console's
-paper-white surfaces, which makes the grade you just typed unreadable.
+## The review console
 
-Every decision is appended to `grades_*.review.jsonl` with the model's original
-grade beside yours. That ledger is the ground truth this project has never had:
-it is the calibration set from the roadmap, accumulating over a term for free.
+`ta-grader review` opens a queue ordered by how likely a grade is to be wrong
+times how many marks it is worth, so the riskiest grade comes first. It shows
+the student's page next to the quote the grade turns on, and can be driven
+from the keyboard. A TA can mark an answer blind before seeing the model's
+grade. Every decision is appended to a ledger beside the model's original
+grade. A Fairness view lists pairs of near-identical answers that got
+different marks. See [docs/review-console.md](docs/review-console.md).
 
-Marks are not final until a human signs off on the batch, and CSV export is
-gated on that — assistant, not authority, as a step someone takes rather than a
-sentence in a README.
+## Models and cost
 
-### Checking the splitter before you spend money on grading
+Requests go to any OpenAI-compatible endpoint (`[api] url` in `course.toml`):
+OpenRouter, OpenAI, vLLM, Ollama, or a university gateway. Both grading models
+must accept images. Use two *different* models: two runs of one model agreeing
+tells you little, and the tool warns if you try.
 
-The splitter is the step most likely to need a look, because it depends on how
-each student formats their submission.
-
-```bash
-# See how one homework splits, without saving anything
-python question_splitter.py --preview students_extracted/400000003.txt -n 10
-
-# Split using regex heading detection only - zero API calls
-python question_splitter.py -n 10 --no-llm
-```
-
-The split step prints `N/10 questions found` per student and warns loudly when
-a submission yields nothing, so a silent total miss is visible immediately.
-
-## Configuration
-
-Everything lives in `config.py` and can be overridden in `.env`:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LLM_KEY` | *(required)* | OpenRouter API key |
-| `LLM_URL` | `https://openrouter.ai/api/v1` | API endpoint |
-| `MODEL_1` | `openai/gpt-4.1-nano` | First grading model |
-| `MODEL_2` | `google/gemini-2.5-flash` | Second grading model |
-| `VISION_MODEL` | `google/gemini-2.5-flash` | Model for describing figures during extraction |
-| `SPLITTER_MODEL` | `google/gemini-2.5-flash` | Model that locates question boundaries |
-| `VISION_GRADER_1/2` | same as `MODEL_1/2` | Graders for the vision route |
-| `MIN_CHARS_PER_PAGE` | `400` | Below this, route to vision |
-| `MIN_ANSWERED_FRACTION` | `0.25` | Splitter yield below this routes to vision |
-| `MAX_WORKERS` | `5` | Students graded in parallel |
-| `GRADE_CONFLICT_LIMIT` | `10` | Grade gap above which to flag for review |
-| `GRADE_RESOLUTION` | `max` | `max`, `mean` or `min` when models agree |
-
-Set the two grading models to *different* models. Pointing both at the same
-model produces agreement that means nothing; the tool warns if you do.
-
-### Models and cost
-
-Runs through [OpenRouter](https://openrouter.ai), so model ids are
-provider-prefixed. Both grading models must accept image input.
-
-**These defaults were picked by measurement, not list price.** Vision cost is
-driven by how a model tokenizes page images, which varies ~6x between families
-and is invisible in the per-token rate. Re-measure with `benchmark_models.py`
-before changing them.
-
-Measured on two real submissions, question 8, both graders:
+The defaults were picked by measurement on Persian/English submissions,
+question 8, both graders:
 
 | Model | $/student | Grades given | Verdict |
 |-------|-----------|--------------|---------|
-| `openai/gpt-4.1-nano` | 0.0015 | 85, 88 | **default** |
-| `google/gemini-2.5-flash` | 0.0018 | 100, 75 | **default** |
+| `openai/gpt-4.1-nano` | 0.0015 | 85, 88 | default |
+| `google/gemini-2.5-flash` | 0.0018 | 100, 75 | default |
 | `openai/gpt-5.6-luna` | 0.0202 | 95, **0** | 13x the cost, graded no better |
 | `qwen/qwen3-vl-32b-instruct` | 0.0016 | 100, **0** | unreliable on Persian |
-| `google/gemini-2.5-flash-lite` | 0.0004 | **0, 0** | cannot read Persian |
-| `amazon/nova-lite-v1` | 0.0007 | **0, 0** | cannot read Persian |
-| `mistralai/mistral-small-3.2-24b` | 0.0014 | **0, 0** | cannot read Persian |
-| `openai/gpt-5-nano` | 0.0018 | none, none | no parseable grade |
+| `google/gemini-2.5-flash-lite` | 0.0004 | **0, 0** | could not read Persian |
+| `amazon/nova-lite-v1` | 0.0007 | **0, 0** | could not read Persian |
+| `mistralai/mistral-small-3.2-24b` | 0.0014 | **0, 0** | could not read Persian |
 
-**Read the zeros carefully.** The cheapest models are not cheap — they return
-`0` when they cannot read the submission, which is indistinguishable from a
-student who genuinely got it wrong. Saving $0.10 across a class is not worth
-silently failing students. Anything you adopt must produce *varied, defensible*
-grades on submissions you have marked yourself.
-
-### What actually drives the bill
-
-Three things, in order of impact:
-
-1. **Route, don't blanket-vision.** `hybrid_grader.py` sends ~3% of a class to
-   vision instead of 100%.
-2. **Grade all questions in one pass** (`--num-questions 10`) rather than one
-   call per question. Per-question mode re-sends every page for every question,
-   so 10 questions cost 10x the image tokens for the same pages.
-3. **Model choice**, as above.
-
-Rough totals for a 119-student class, all 10 questions, both graders:
-
-| Approach | Cost |
-|----------|------|
-| Hybrid, current defaults | **~$4** |
-| All-vision, current defaults | ~$4 |
-| All-vision, gpt-5.6-luna pair | ~$26 |
-
-Extraction for the text route is a one-off; re-grading afterwards only pays
-text prices.
-
-Pages are sent as JPEG, and the DPI is stepped down automatically if a
-submission would exceed the API's 30 MB image limit (`MAX_IMAGE_MB`, default
-18). Long scans used to be rejected outright by that limit -- which hit
-precisely the handwritten submissions that need the vision route.
-
-## Output format
-
-Single question (`grades_question_8.json`):
-
-```json
-{
-  "question": 8,
-  "total_students": 50,
-  "conflicts": 3,
-  "grades": [
-    {
-      "student_id": "400000003",
-      "question": 8,
-      "final_grade": 85,
-      "conflict": false,
-      "model_1": {"name": "openai/gpt-4.1-nano", "grade": 85, "reasoning": "..."},
-      "model_2": {"name": "google/gemini-2.5-flash", "grade": 82, "reasoning": "..."}
-    }
-  ]
-}
-```
-
-All questions (`grades_result.json`):
-
-```json
-{
-  "num_questions": 10,
-  "total_students": 50,
-  "students_with_conflicts": 3,
-  "grades": [
-    {
-      "student_id": "400000003",
-      "final_grades": [85, 70, 100, null, 90],
-      "total_grade": 345,
-      "conflicts": [false, false, false, true, false],
-      "has_conflict": true,
-      "model_1": {"name": "openai/gpt-4.1-nano", "grades": [85, 70, 100, 30, 90], "reasoning": "..."},
-      "model_2": {"name": "google/gemini-2.5-flash", "grades": [85, 70, 100, null, 90], "reasoning": "..."}
-    }
-  ]
-}
-```
-
-`final_grade`/`final_grades` entries are `null` when neither model produced a
-grade. `total_grade` sums only the grades that exist.
-
-## Persian text handling
-
-Many PDFs store right-to-left lines in visual order, so reading them
-left-to-right yields the words backwards — `به نام خدا` extracts as
-`خدا نام به`. The extractors detect predominantly-RTL lines and restore word
-order automatically. Disable with `--no-rtl-fix` if a particular PDF comes out
-worse.
-
-This also affects question headings, which extract as `۱ سوال` rather than
-`سوال ۱`; the splitter recognises both forms.
-
-## Tips
-
-- **Resume an interrupted run:** just run the same command again. Already-graded
-  students are skipped, and results are written atomically after each student,
-  so an interrupt cannot corrupt the JSON.
-- **Re-grade one student:** delete their entry from the JSON and re-run.
-- **Different homeworks:** use `--output` to keep results separate.
-- **Sanity-check the marking scheme** on a handful of PDFs before running the
-  whole class.
-
-## Troubleshooting
-
-**"No PDF files found"**
-Check the files are in `students_pdf/` and end in `.pdf` (case-insensitive).
-
-**402 / "Insufficient credits" from the API**
-The OpenRouter account is out of credit. Top up at
-<https://openrouter.ai/credits>.
-
-**404 "No endpoints found for model"**
-The model id is wrong or no longer served. Check the current list at
-<https://openrouter.ai/models> — ids are provider-prefixed, e.g.
-`google/gemini-2.5-flash`, not `gemini-2.5-flash`.
-
-**"LLM_KEY is not set"**
-Create `.env` with `LLM_KEY=...` in the project root.
-
-**Everything comes back `[NO ANSWER PROVIDED]`**
-Check `students_extracted/` actually contains text. If it does, run
-`question_splitter.py --preview <file> -n N` to see where the splitter thinks
-the boundaries are. If extraction is empty, the PDF is likely scanned images —
-use `vision_grader.py` instead of the text route.
-
-**Grades look wrong**
-Read both models' reasoning in the review UI. Usually the marking scheme is
-underspecified; adding explicit point allocations to `answers/correct_answer_N.md`
-helps a lot.
-
-## Tests
+The cheapest models return `0` when they cannot read a page, which looks
+exactly like a student who got it wrong. Vision cost depends on how a model
+turns page images into tokens, which varies about 6x between model families
+and is not visible in the per-token price. Measure on your own submissions
+before you switch:
 
 ```bash
-python test_grading.py          # no API key or network needed
-python -m pytest test_grading.py -v
+ta-grader benchmark -q 1 --limit 3
 ```
 
-Covers grade parsing, conflict resolution, question splitting, and RTL repair.
+A class of 119, all 10 questions, both graders, cost about $4 with the
+defaults. Grading all questions in one pass (`--num-questions 10`) is much
+cheaper than ten single-question runs, which send every page ten times.
 
-## Files
+## Languages
 
-| File | Purpose |
-|------|---------|
-| `config.py` | All settings, read from environment/`.env` |
-| `vision_grader.py` | Main grader — PDF pages → two vision models |
-| `grade_parsing.py` | Parsing grades from model output, conflict resolution |
-| `posture.py` | Grading posture: the marginal-call rules, loaded from `postures/*.json` |
-| `assurance.py` | Withholding grades that cannot be justified; sampling confidence |
-| `pipeline.py` | Text route orchestrator (extract → split → grade) |
-| `smart_pdf_extractor.py` | Hybrid extraction: text directly, vision only for figures |
-| `pdf_extractor.py` | Full vision extraction (expensive fallback) |
-| `question_splitter.py` | Locates question boundaries, writes per-question files |
-| `homework_grader.py` | Text-based dual-model grader |
-| `grading_prompts.py` | Grading system prompt |
-| `review_app.py` | Review console (Streamlit): triage queue, cohort grid, fairness check, ledger, sign-off |
-| `review_store.py` | The review data layer — items, priority, decisions, ledger, export. Tested without a browser. |
-| `.streamlit/config.toml` | The console's theme, pinned so it cannot follow the browser into dark mode |
-| `tagging.py` | Descriptive labels from `tagsets/*.json` — recorded, never scored |
-| `conflict_reviewer.py` | Older terminal review UI (single-question files only) |
-| `hybrid_grader.py` | Routes each student to text or vision, merges results |
-| `benchmark_models.py` | Measures grade/cost/latency per model on real PDFs |
-| `test_grading.py` | Test suite |
+Question-heading words, native digits, part labels and right-to-left repair
+come from locale packs in `src/ta_grader/data/locales/`. English and Persian
+ship with the package. Enable them per course:
+
+```toml
+[course]
+languages = ["fa", "en"]
+```
+
+Adding a language is one small TOML file: see
+[docs/adding-a-language.md](docs/adding-a-language.md).
+
+## Responsible use
+
+This is an assistant for a TA, not a replacement for one. Read
+[RESPONSIBLE_USE.md](RESPONSIBLE_USE.md) before using it on a real class,
+especially the part about sending student work to a model provider.
+
+## Development
+
+```bash
+git clone https://github.com/parsaivi/ta-grader && cd ta-grader
+python -m venv .venv && .venv/bin/pip install -e ".[dev]"
+.venv/bin/pytest          # offline, no API key
+.venv/bin/ruff check src tests
+```
+
+The end-to-end test runs a whole round on the demo course with a stand-in
+model client. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+[MIT](LICENSE).
