@@ -170,10 +170,10 @@ PARAMETERS: List[Parameter] = [
         title="The language the answer is written in",
         default="ignore",
         values={
-            "ignore": "The language of the answer -- Persian, English, or a "
-                      "mixture -- is NOT graded and must NOT affect any mark. "
-                      "An answer in Persian and the identical answer in English "
-                      "receive the same grade. Do not prefer, and do not "
+            "ignore": "The language the answer is written in, or a mixture "
+                      "of languages, is NOT graded and must NOT affect any mark. "
+                      "The identical answer in any language the course accepts "
+                      "receives the same grade. Do not prefer, and do not "
                       "penalise, either language, and do not mention language "
                       "as a reason for any deduction.",
         },

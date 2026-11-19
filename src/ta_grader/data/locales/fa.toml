@@ -1,0 +1,17 @@
+# Locale pack: Persian (Farsi). See en.toml for what each field does.
+
+name = "Persian"
+rtl = true
+
+question_words = ["سوال", "سؤال", "پاسخ", "تمرین"]
+
+# Persian and Arabic-Indic digits, in order 0-9. Both appear in real
+# submissions, often in the same file.
+digits = "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩"
+
+part_words = ["بخش", "قسمت"]
+
+# (الف), (ب), (ج), (د) are parts a, b, c, d. "آ" is sometimes used for the first.
+part_labels = ["الف", "ب", "ج", "د", "ه"]
+
+heading_examples = ["سوال ۱", "سوال اول", "پاسخ ۱", "۱.", "۱)"]

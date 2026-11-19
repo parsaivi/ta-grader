@@ -14,13 +14,11 @@ import concurrent.futures
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from tqdm import tqdm
 
 from .config import (
-    result_path,
-    rubric_file,
     ANSWERS_FOLDER,
     GRADE_CONFLICT_LIMIT,
     GRADE_RESOLUTION,
@@ -31,6 +29,8 @@ from .config import (
     OUTPUT_FILE,
     QUESTIONS_FOLDER,
     get_client,
+    result_path,
+    rubric_file,
 )
 from .grade_parsing import extract_single_grade, resolve_grade
 from .grading_prompts import GRADING_SYSTEM_PROMPT

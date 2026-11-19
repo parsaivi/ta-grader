@@ -56,7 +56,7 @@ from pathlib import Path
 from string import Template
 from typing import Dict, List, Optional, Tuple
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -70,7 +70,6 @@ from ta_grader.review_store import (
     FLAG_SPREAD,
     FLAG_TEXT,
     FLAG_VETO,
-    FORMAT_PARTS,
     VETO_TEXT,
     ReviewItem,
     ReviewSession,
@@ -749,7 +748,7 @@ def submission_pages(pdf: Path, mtime: float, count: int,
                     )
                 st.markdown(
                     f'<div class="pglabel">page {number} / {count}'
-                    + (f'<span class="pgcited">model cited this page</span>' if is_cited else "")
+                    + ('<span class="pgcited">model cited this page</span>' if is_cited else "")
                     + "</div>",
                     unsafe_allow_html=True,
                 )
@@ -1292,10 +1291,10 @@ def show_submission(item: ReviewItem, pdf_folders: List[str]) -> None:
         )
         if amber:
             st.markdown(
-                f'<div style="font-size:11.5px;color:oklch(0.42 0.14 45);margin-top:6px">'
-                f'A quote that is not in the student’s work is the signature of a model '
-                f'reciting the answer key. Treat this grade as unsupported until you '
-                f'have read the page.</div>',
+                '<div style="font-size:11.5px;color:oklch(0.42 0.14 45);margin-top:6px">'
+                'A quote that is not in the student’s work is the signature of a model '
+                'reciting the answer key. Treat this grade as unsupported until you '
+                'have read the page.</div>',
                 unsafe_allow_html=True,
             )
 
@@ -1559,7 +1558,7 @@ def decision_bar(session: ReviewSession, item: ReviewItem,
                         unsafe_allow_html=True)
         for i, (label, value) in enumerate(picks):
             key = f"pick_{i}"
-            button_css(key, f"font-size:11.5px;padding:3px 8px;min-height:0;")
+            button_css(key, "font-size:11.5px;padding:3px 8px;min-height:0;")
             if row[i + 1].button(f"{label}  F{i + 1}", key=key, width="stretch",
                                  help="fills the grade field — it does not commit"):
                 # Filling rather than committing: a mis-clicked suggestion should
@@ -1605,7 +1604,7 @@ def decision_bar(session: ReviewSession, item: ReviewItem,
         with act[2]:
             button_css(
                 "act_withhold",
-                f"border-color:oklch(0.86 0.06 25) !important;color:oklch(0.45 0.15 25);",
+                "border-color:oklch(0.86 0.06 25) !important;color:oklch(0.45 0.15 25);",
                 "background:oklch(0.97 0.02 25);",
             )
             if st.button("Withhold  W", key="act_withhold", width="stretch",

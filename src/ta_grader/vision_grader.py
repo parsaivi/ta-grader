@@ -20,9 +20,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from tqdm import tqdm
 
+from . import locales
 from .assurance import (
     EVIDENCE_FIELD,
     LEGIBILITY_ALIASES,
@@ -34,10 +35,10 @@ from .assurance import (
     PartAssurance,
     apply_vetoes,
     check_evidence,
+    summarise_all_samples,
 )
 from .assurance import output_spec as assurance_output_spec
 from .assurance import prompt_section as assurance_prompt_section
-from .assurance import summarise_all_samples
 from .config import (
     ANSWERS_FOLDER,
     GRADE_CONFLICT_LIMIT,
@@ -87,6 +88,10 @@ JPEG_QUALITY = 80
 MAX_IMAGE_BYTES = int(MAX_IMAGE_MB * 1_000_000)
 
 
+def _language_line() -> str:
+    return locales.active().language_sentence()
+
+
 def get_grading_prompt_single(question_num: int, correct_answer: str) -> str:
     """System prompt for grading one question out of a whole submission."""
     return f"""You are a strict but fair teaching assistant grading student homework.
@@ -94,8 +99,8 @@ def get_grading_prompt_single(question_num: int, correct_answer: str) -> str:
 You will see images of a student's homework submission (PDF pages).
 You need to find and grade ONLY Question {question_num}.
 
-The submission may be in Persian, English, or a mix of both, and may be
-handwritten. Grade the content, not the handwriting or the language.
+{_language_line()} It may be handwritten. Grade the content, not the
+handwriting or the language.
 
 ### Question {question_num} - Correct Answer:
 {correct_answer}
@@ -133,8 +138,8 @@ def get_grading_prompt_all(num_questions: int, correct_answers: str) -> str:
 You will see images of a student's homework submission (PDF pages).
 The homework has {num_questions} questions.
 
-The submission may be in Persian, English, or a mix of both, and may be
-handwritten. Grade the content, not the handwriting or the language.
+{_language_line()} It may be handwritten. Grade the content, not the
+handwriting or the language.
 
 ### Correct Answers:
 {correct_answers}
@@ -215,11 +220,10 @@ You must find and grade ONLY Question {question_num}.
 Question {question_num} has {n} parts: {listed}. Grade each part SEPARATELY and
 independently. A student may answer some parts and not others.
 
-The submission may be in Persian, English, or a mix of both, and may be
-handwritten. Grade the content, not the handwriting or the language. Persian
-part labels (الف), (ب), (ج) correspond to parts {listed} in that order; students
-may also label them a/b/c, 1/2/3, or i/ii/iii, or not label them at all -- in
-that case work out which part each answer belongs to from its content.
+{_language_line()} It may be handwritten. Grade the content, not the
+handwriting or the language. {locales.active().part_label_sentence(part_labels)}
+Students may also label parts a/b/c, 1/2/3, or i/ii/iii, or not label them at
+all -- in that case work out which part each answer belongs to from its content.
 
 ### Question {question_num} - Statement, reference solution and marking scheme:
 {correct_answer}

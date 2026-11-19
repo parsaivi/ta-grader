@@ -46,11 +46,10 @@ import difflib
 import json
 import os
 import re
-import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 # --- Result-file shapes -------------------------------------------------------
 
@@ -273,14 +272,7 @@ class ReviewItem:
 
 # The grader is asked to reason part by part and does, with a heading per part:
 # "**Part (a)**", "Part (b):", and the Persian labels the prompt maps them to.
-_PART_HEADING = re.compile(
-    r"^[ \t>*_#]*\**\s*(?:part|بخش|قسمت)\s*[\(\[]?\s*"
-    r"(?P<label>[a-zA-Z]|[0-9]{1,2}|الف|ب|ج|د)\s*[\)\]]?\s*\**\s*:?\s*$",
-    re.IGNORECASE | re.MULTILINE,
-)
-
-# Persian part labels, in the order the prompt maps them to a,b,c,d.
-_PERSIAN_LABELS = {"الف": "a", "ب": "b", "ج": "c", "د": "d"}
+# Both the heading words and the native labels come from the locale packs.
 
 
 def slice_reasoning(text: str, key: str) -> str:
@@ -297,13 +289,17 @@ def slice_reasoning(text: str, key: str) -> str:
     """
     if not text:
         return ""
-    matches = list(_PART_HEADING.finditer(text))
+    from . import locales
+
+    locs = locales.active()
+    native_labels = locs.part_label_map()
+    matches = list(locales.part_heading_regex(locs).finditer(text))
     if not matches:
         return ""
     wanted = str(key).strip().lower()
     for i, match in enumerate(matches):
         label = match.group("label").strip().lower()
-        label = _PERSIAN_LABELS.get(label, label)
+        label = native_labels.get(label, label)
         if label != wanted:
             continue
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)

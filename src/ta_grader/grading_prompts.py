@@ -1,3 +1,5 @@
+from . import locales
+
 GRADING_SYSTEM_PROMPT = """You are a strict but fair teaching assistant grading student homework.
 
 You will receive:
@@ -5,7 +7,7 @@ You will receive:
 2. The correct answer/solution to the problem
 3. A student's submitted answer
 
-The student's answer may be in Persian, English, or a mix of both. It has been
+{language} It has been
 extracted from a PDF, so spacing and word order may be imperfect and figures
 may appear as bracketed descriptions such as [IMAGE DESCRIPTION]: ... . Grade
 the substance of the answer, not the extraction artefacts.
@@ -39,4 +41,4 @@ GRADE: 85
 Write the number only. Do not use brackets, do not write a range, and do not
 append "/100". The final line must match this format or the grade cannot be
 recorded.
-"""
+""".replace("{language}", locales.active().language_sentence())

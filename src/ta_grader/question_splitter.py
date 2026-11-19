@@ -22,27 +22,26 @@ import json
 import re
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
+from . import locales
 from .config import NO_ANSWER_MARKER, SPLITTER_MODEL, get_client
 
 MAX_RETRIES = 3
 RETRY_BACKOFF_SECONDS = 2
 
 
-SPLITTER_SYSTEM_PROMPT = """You locate where each question's answer begins in a student's homework.
+_SPLITTER_PROMPT_TEMPLATE = """You locate where each question's answer begins in a student's homework.
 
 You receive the homework as numbered lines, like:
 
-     1| بسم الله
+     1| Name: ...
      2| Question 1
      3| SRAM is built from flip-flops...
 
 Students mark questions in many ways:
-- "Question 1:", "Q1:", "1.", "1)", "1-", "#1"
-- Persian: "سوال ۱", "سوال اول", "پاسخ ۱", "۱.", "۱)"
-- "Problem 1", "Exercise 1"
-- Sub-parts like "الف", "ب", "آ", "(a)", "(b)" belong to the question above them,
+{examples}
+- Sub-parts like {subparts} belong to the question above them,
   they are NOT new questions.
 
 Your job:
@@ -58,29 +57,30 @@ Rules:
 - Ignore cover pages, names, and student IDs.
 
 Output STRICT JSON and nothing else:
-{"starts": {"1": 3, "2": 27, "3": null, "4": 61}}
+{{"starts": {{"1": 3, "2": 27, "3": null, "4": 61}}}}
 """
 
 
-# Recognises a question heading at the start of a line, in Latin or Persian
-# digits, with the common prefixes students use.
-_PERSIAN_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-
-# An explicit heading keyword ("Question 3", "سوال ۳"). These are unambiguous,
-# so the rest of the line may contain anything.
-_KEYWORD_HEADING_RE = re.compile(
-    r"""^\s*
-    (?:
-        (?:question|q|problem|exercise|سوال|سؤال|پاسخ|تمرین)\s*[.:\-]?\s*(\d{1,2})
-      | \#\s*(\d{1,2})
-      # Persian PDFs often extract right-to-left runs in visual order, so the
-      # number lands before the keyword: "۱ سوال" rather than "سوال ۱".
-      | (\d{1,2})\s*[.:\-]?\s*(?:سوال|سؤال|پاسخ|تمرین)
+def splitter_system_prompt() -> str:
+    """The splitter's prompt, with heading examples from the enabled locales."""
+    locs = locales.active()
+    examples = [f'- "{e}"' for e in ["Question 1:", "Q1:", "1.", "1)", "1-", "#1"]]
+    for loc in locs.locales:
+        if loc.heading_examples and loc.code != "en":
+            shown = ", ".join(f'"{e}"' for e in loc.heading_examples)
+            examples.append(f"- {loc.name}: {shown}")
+    subparts = ['"(a)"', '"(b)"'] + [f'"{x}"' for x in list(locs.part_label_map())[:3]]
+    return _SPLITTER_PROMPT_TEMPLATE.format(
+        examples="\n".join(examples), subparts=", ".join(subparts)
     )
-    (?:\s|[.:\-)]|$)
-    """,
-    re.IGNORECASE | re.VERBOSE,
-)
+
+
+# Question headings come from the enabled locale packs (locales.py): the words
+# students use ("Question", "سوال"), their digits, and for right-to-left
+# languages the number-first form PDFs extract ("۱ سوال").
+def _keyword_heading_re():
+    return locales.heading_regex(locales.active())
+
 
 # A bare number used as a heading ("3", "3.", "3)"). Ambiguous -- it also
 # matches ordinary numbered lists like "3. **Bottom diagram:** ..." -- so this
@@ -93,7 +93,7 @@ _IMAGE_BLOCK_RE = re.compile(r"^\s*\[(IMAGE|TABLE)\b", re.IGNORECASE)
 
 
 def _normalise_digits(text: str) -> str:
-    return text.translate(_PERSIAN_DIGITS)
+    return text.translate(locales.active().digit_table())
 
 
 def number_lines(text: str) -> str:
@@ -112,6 +112,7 @@ def find_headings_heuristically(text: str, num_questions: int) -> Dict[int, int]
     """
     found: Dict[int, int] = {}
     in_image_block = False
+    keyword_re = _keyword_heading_re()
 
     for line_no, raw_line in enumerate(text.splitlines(), 1):
         line = _normalise_digits(raw_line)
@@ -125,7 +126,7 @@ def find_headings_heuristically(text: str, num_questions: int) -> Dict[int, int]
                 in_image_block = False
             continue
 
-        match = _KEYWORD_HEADING_RE.match(line) or _BARE_HEADING_RE.match(line)
+        match = keyword_re.match(line) or _BARE_HEADING_RE.match(line)
         if not match:
             continue
 
@@ -236,7 +237,7 @@ class QuestionSplitter:
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=[
-                        {"role": "system", "content": SPLITTER_SYSTEM_PROMPT},
+                        {"role": "system", "content": splitter_system_prompt()},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0,

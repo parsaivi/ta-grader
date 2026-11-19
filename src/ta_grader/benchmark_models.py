@@ -17,7 +17,7 @@ import statistics
 import time
 from pathlib import Path
 
-from .config import PDF_FOLDER, ANSWERS_FOLDER, get_client, student_id_for
+from .config import ANSWERS_FOLDER, PDF_FOLDER, get_client, student_id_for
 from .grade_parsing import extract_single_grade
 from .vision_grader import VisionGrader, get_grading_prompt_single, load_correct_answer
 
@@ -99,7 +99,7 @@ def main():
     if args.max_pages:
         # A 17-page scan is a many-megabyte payload that dominates the run
         # without telling you more about model quality than a short one does.
-        import fitz
+        import pymupdf as fitz
 
         bounded = []
         for p in pdfs:

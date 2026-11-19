@@ -1,0 +1,27 @@
+# Locale pack: English.
+# A locale pack tells the grader how submissions in one language mark their
+# questions and parts. Enable packs in course.toml: [course] languages = ["en"].
+# To add a language, copy this file to <code>.toml (in the package's
+# data/locales/ or your workspace's locales/ folder) and translate it.
+
+name = "English"
+
+# Written right to left? Turns on word-order repair for PDFs that store
+# right-to-left lines in visual order, and recognises "1 Question" headings.
+rtl = false
+
+# Words that introduce a question number at the start of a line: "Question 3".
+question_words = ["question", "q", "problem", "exercise"]
+
+# Digits other than 0-9 that students write (none for English).
+digits = ""
+
+# Words that introduce a part label: "Part (b)".
+part_words = ["part"]
+
+# Native part labels, in order. They map to a, b, c, ... Leave empty when
+# parts are already lettered a, b, c.
+part_labels = []
+
+# Shown to the question splitter as examples of how students mark questions.
+heading_examples = ["Question 1:", "Q1:", "1.", "1)", "#1", "Problem 1", "Exercise 1"]

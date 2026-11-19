@@ -14,17 +14,13 @@ which route produced it.
 """
 
 import argparse
-import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 
 from .config import (
-    result_path,
-    student_id_for,
     ANSWERS_FOLDER,
     MIN_ANSWERED_FRACTION,
     MIN_CHARS_PER_PAGE,
@@ -33,6 +29,8 @@ from .config import (
     QUESTIONS_FOLDER,
     VISION_GRADER_1,
     VISION_GRADER_2,
+    result_path,
+    student_id_for,
 )
 
 TEXT_ROUTE = "text"
@@ -238,8 +236,9 @@ def grade_hybrid(
             print(f"\nText route: grading {len(text_todo)} students...")
             import concurrent.futures
 
-            from .config import MAX_WORKERS
             from tqdm import tqdm
+
+            from .config import MAX_WORKERS
 
             grader = HomeworkGrader()
             answers = {}
@@ -267,8 +266,9 @@ def grade_hybrid(
         print(f"\nVision route: grading {len(vision_todo)} students...")
         import concurrent.futures
 
-        from .config import MAX_WORKERS
         from tqdm import tqdm
+
+        from .config import MAX_WORKERS
 
         # Handwriting is the hardest input, so the vision route gets its own
         # model pair (same as the text pair by default).

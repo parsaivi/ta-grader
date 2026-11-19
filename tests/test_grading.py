@@ -10,6 +10,7 @@ No API key or network access is needed -- the LLM is stubbed out.
 import json
 from unittest.mock import MagicMock, patch
 
+from ta_grader import config
 from ta_grader.assurance import (
     LEGIBILITY_ALIASES,
     LEGIBILITY_VALUES,
@@ -31,16 +32,18 @@ from ta_grader.grade_parsing import (
     resolve_grades,
 )
 from ta_grader.posture import PARAMETERS, load_posture, posture_from_dict
-from ta_grader.tagging import load_tag_scheme, tag_scheme_from_dict
 from ta_grader.question_splitter import (
     QuestionSplitter,
+    _sanitise_starts,
     find_headings_heuristically,
     number_lines,
     slice_by_starts,
-    _sanitise_starts,
 )
 from ta_grader.smart_pdf_extractor import fix_rtl_text, is_rtl_line
+from ta_grader.tagging import load_tag_scheme, tag_scheme_from_dict
 
+# These tests come from a Persian/English course, and exercise both packs.
+config.LANGUAGES = ["en", "fa"]
 
 # --- Grade parsing ------------------------------------------------------------
 
@@ -279,8 +282,9 @@ def test_is_rtl_line():
 
 
 def _assessment(student_id, route, pages=10, chars=10000):
-    from ta_grader.hybrid_grader import Assessment
     from pathlib import Path
+
+    from ta_grader.hybrid_grader import Assessment
 
     return Assessment(student_id, Path(f"{student_id}.pdf"), pages, chars, route, "")
 
@@ -347,7 +351,7 @@ def test_render_stays_within_the_api_image_budget():
     import tempfile
     from pathlib import Path
 
-    import fitz
+    import pymupdf as fitz
 
     from ta_grader.vision_grader import MAX_IMAGE_BYTES, VisionGrader
 
