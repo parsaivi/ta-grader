@@ -98,3 +98,42 @@ def test_shipped_postures_and_workspace_overrides(workspace):
 def test_part_only_flags_are_refused_off_the_vision_route(workspace, capsys):
     assert cli.main(["grade", "-q", "1", "--parts", "a,b"]) == 2
     assert "--route vision" in capsys.readouterr().out
+
+
+def _parts_results(question=2, parts=("a", "b")):
+    return {
+        "question": question, "parts": list(parts),
+        "grades": [{
+            "student_id": "S0001", "question": question, "parts": list(parts),
+            "part_grades": {p: 100 for p in parts}, "final_grades": [100] * len(parts),
+            "conflicts": [False] * len(parts),
+            "model_1": {"name": "m1", "grades": [100] * len(parts), "reasoning": ""},
+            "model_2": {"name": "m2", "grades": [100] * len(parts), "reasoning": ""},
+        }],
+    }
+
+
+def test_course_points_become_review_weights_and_export_marks(workspace):
+    from ta_grader.review_store import ReviewSession, course_weights
+
+    with open(workspace / "course.toml", "a") as f:
+        f.write('\n[[questions]]\nid = 2\npoints = {a = 5, b = 15}\n')
+    config.load()
+    data = _parts_results()
+    assert course_weights(data) == {"a": 5.0, "b": 15.0}
+
+    path = workspace / "results" / "grades_question_2_parts.json"
+    path.write_text(json.dumps(data))
+    session = ReviewSession(str(path))
+    assert [i.weight for i in session.items] == [5.0, 15.0]
+    session.set_weights({"a": 10.0, "b": 15.0})          # the console wins
+    assert ReviewSession(str(path)).weights()["a"] == 10.0
+
+
+def test_points_split_evenly_over_parts(workspace):
+    from ta_grader.review_store import course_weights
+
+    with open(workspace / "course.toml", "a") as f:
+        f.write('\n[[questions]]\nid = 2\npoints = 20\n')
+    config.load()
+    assert course_weights(_parts_results()) == {"a": 10.0, "b": 10.0}

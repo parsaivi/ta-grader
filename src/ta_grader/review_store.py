@@ -370,6 +370,44 @@ def _grade_at(block: Dict[str, Any], index: int) -> Optional[int]:
     return None
 
 
+def course_weights(data: Dict[str, Any]) -> Dict[str, float]:
+    """
+    Marks per item from course.toml's `[[questions]] points`, so a fresh
+    review starts from the course's real weighting instead of 1 mark each.
+    `points` is a number, split evenly over a question's parts, or a table
+    of marks per part (`points = {a = 5, b = 10}`). Weights set in the
+    console are kept in the review state and win over these.
+    """
+    from . import config
+
+    def total(q: int) -> Optional[float]:
+        pts = config.QUESTIONS.get(q, {}).get("points")
+        if isinstance(pts, dict):
+            return float(sum(float(v) for v in pts.values()))
+        return None if pts is None else float(pts)
+
+    fmt = detect_format(data)
+    out: Dict[str, float] = {}
+    if fmt == FORMAT_PARTS:
+        q = int(data.get("question") or 0)
+        parts = [str(p) for p in (data.get("parts") or [])]
+        pts = config.QUESTIONS.get(q, {}).get("points")
+        if isinstance(pts, dict):
+            out = {str(k): float(v) for k, v in pts.items() if str(k) in parts}
+        elif pts is not None and parts:
+            out = {p: float(pts) / len(parts) for p in parts}
+    elif fmt == FORMAT_MULTI:
+        count = int(data.get("num_questions") or 0)
+        for q in range(1, count + 1):
+            if total(q) is not None:
+                out[str(q)] = total(q)
+    else:
+        q = int(data.get("question") or 1)
+        if total(q) is not None:
+            out[str(q)] = total(q)
+    return out
+
+
 def build_items(
     data: Dict[str, Any],
     weights: Optional[Dict[str, float]] = None,
@@ -532,7 +570,11 @@ class ReviewSession:
         self.state_path = self.path.with_suffix(".review.json")
         self.ledger_path = self.path.with_suffix(".review.jsonl")
         self.state = self._load_state()
-        self.items = build_items(self.data, self.state.get("weights"))
+        self.items = build_items(self.data, self.weights())
+
+    def weights(self) -> Dict[str, float]:
+        """Marks per item: course.toml points, overridden by the console."""
+        return {**course_weights(self.data), **(self.state.get("weights") or {})}
 
     # ---- state ---------------------------------------------------------------
 
@@ -585,10 +627,9 @@ class ReviewSession:
             return False
 
     def reload(self) -> None:
-        weights = self.state.get("weights")
         self.data = json.loads(self.path.read_text(encoding="utf-8"))
         self.mtime = self.path.stat().st_mtime
-        self.items = build_items(self.data, weights)
+        self.items = build_items(self.data, self.weights())
 
     # ---- queue ---------------------------------------------------------------
 

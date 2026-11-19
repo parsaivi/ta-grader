@@ -2055,10 +2055,10 @@ def main() -> None:
         cols = st.columns(min(len(session.item_keys), 4) or 1)
         for i, key in enumerate(session.item_keys):
             weights[key] = cols[i % len(cols)].number_input(
-                key, min_value=0.0, value=float(session.state.get("weights", {}).get(key, 1.0)),
+                key, min_value=0.0, value=float(session.weights().get(key, 1.0)),
                 step=0.5, key=f"w_{key}",
             )
-        if weights != {k: float(v) for k, v in session.state.get("weights", {}).items()}:
+        if weights != {k: float(session.weights().get(k, 1.0)) for k in session.item_keys}:
             session.set_weights(weights)
 
         st.divider()

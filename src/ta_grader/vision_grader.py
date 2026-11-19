@@ -58,6 +58,7 @@ from .config import (
     get_client,
     result_path,
     rubric_file,
+    question_parts,
     student_id_for,
 )
 from .grade_parsing import (
@@ -1394,6 +1395,10 @@ def main():
 
     if args.parts and not args.question:
         parser.error("--parts applies to a single question; add --question N")
+
+    # Parts named for this question in course.toml apply unless --parts says otherwise.
+    if not args.parts and args.question and question_parts(args.question):
+        args.parts = ",".join(question_parts(args.question))
 
     part_labels = [p.strip() for p in args.parts.split(",") if p.strip()] if args.parts else []
 
