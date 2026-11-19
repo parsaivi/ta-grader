@@ -60,7 +60,7 @@ import pymupdf as fitz
 import streamlit as st
 import streamlit.components.v1 as components
 
-from ta_grader.config import RESULTS_FOLDER
+from ta_grader import config
 from ta_grader.review_store import (
     FLAG_DISAGREEMENT,
     FLAG_EVIDENCE,
@@ -2010,7 +2010,10 @@ def main() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
     handle_goto()
 
-    files = sorted(glob.glob(os.path.join(RESULTS_FOLDER, "grades_*.json")))
+    # `grades_*.json` also matches the `.review.json` sidecars, which are
+    # review state, not results.
+    files = sorted(f for f in glob.glob(os.path.join(config.RESULTS_FOLDER, "grades_*.json"))
+                   if not f.endswith(".review.json"))
     if not files:
         st.error("No results files found (grades_*.json) in this directory.")
         return
