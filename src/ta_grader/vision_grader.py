@@ -56,9 +56,9 @@ from .config import (
     TAG_SCHEME,
     TAGSETS_FOLDER,
     get_client,
+    question_parts,
     result_path,
     rubric_file,
-    question_parts,
     student_id_for,
 )
 from .grade_parsing import (

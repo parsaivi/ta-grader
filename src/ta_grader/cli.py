@@ -2,6 +2,7 @@
 `ta-grader` -- one command for the whole round.
 
     ta-grader init my-course        make a course workspace
+    ta-grader demo                  a synthetic course to try it on
     ta-grader route -q 8            free preview: which students go text, which go vision
     ta-grader grade -q 8            grade (hybrid route by default)
     ta-grader review                open the review console
@@ -186,6 +187,24 @@ def cmd_grade(route: str, rest: List[str]) -> int:
     return _delegate(pipeline.main, "ta-grader grade --route text", rest)
 
 
+def cmd_demo(args: argparse.Namespace) -> int:
+    from .demo import build
+
+    target = Path(args.directory)
+    if (target / config.COURSE_FILE_NAME).exists() and not args.force:
+        print(f"{target} already holds a course (use --force to rebuild it).")
+        return 1
+    root = build(target)
+    print(f"Built a synthetic demo course at {root} (7 invented students).\n")
+    print("Try, free and with no API key:")
+    print(f"  cd {root}")
+    print("  ta-grader route -q 1")
+    print("\nThen, with LLM_KEY set in .env (a few cents for the class):")
+    print("  ta-grader grade --route vision -q 1")
+    print("  ta-grader review")
+    return 0
+
+
 def cmd_benchmark(rest: List[str]) -> int:
     _enter_workspace()
     from . import benchmark_models
@@ -248,6 +267,12 @@ def cmd_export(args: argparse.Namespace) -> int:
     from .review_store import ReviewSession
 
     session = ReviewSession(args.results)
+    # No mark reaches a student until a human has accepted the batch -- the
+    # same gate the review console puts in front of its export button.
+    if not session.signed_off:
+        print("Not exported: this batch has not been signed off. "
+              "Review it with `ta-grader review` and sign off on the Sign-off tab.")
+        return 1
     out = args.output or str(Path(args.results).with_suffix(".csv"))
     try:
         path = session.export_csv(out)
@@ -273,6 +298,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--name", help="course name (default: the folder name)")
     p.add_argument("--force", action="store_true", help="overwrite an existing course.toml")
 
+    p = sub.add_parser("demo", help="build a synthetic course to try the tool on")
+    p.add_argument("directory", nargs="?", default="ta-grader-demo")
+    p.add_argument("--force", action="store_true")
+
     sub.add_parser("route", help="preview text/vision routing; no API calls", add_help=False)
 
     p = sub.add_parser("grade", help="grade submissions", add_help=False)
@@ -297,6 +326,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if args.command == "init":
         return cmd_init(args)
+    if args.command == "demo":
+        return cmd_demo(args)
     if args.command == "route":
         return cmd_route(rest)
     if args.command == "grade":
