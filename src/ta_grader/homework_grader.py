@@ -28,6 +28,7 @@ from .config import (
     NO_ANSWER_MARKER,
     OUTPUT_FILE,
     QUESTIONS_FOLDER,
+    RESULTS_SCHEMA_VERSION,
     get_client,
     result_path,
     rubric_file,
@@ -177,6 +178,7 @@ def load_existing_results(filepath: str) -> Dict[str, Dict[str, Any]]:
 def save_results(results: List[Dict[str, Any]], filepath: str):
     """Write results atomically so an interrupt cannot truncate the file."""
     output = {
+        "schema_version": RESULTS_SCHEMA_VERSION,
         "total_students": len(results),
         "conflicts": sum(1 for r in results if r.get("conflict", False)),
         "grades": results,

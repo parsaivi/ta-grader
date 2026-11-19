@@ -74,6 +74,7 @@ def test_full_round_offline(demo, monkeypatch):
     assert row["final_grades"] == [90, 80]                    # max of agreeing pair; b conflicted
     assert row["conflicts"] == [False, True]
     assert data["posture"]["key"] == "standard"               # posture recorded in full
+    assert data["schema_version"] == 1
 
     from ta_grader.review_store import ReviewSession
 

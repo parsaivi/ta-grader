@@ -191,6 +191,11 @@ def load(start: Optional[Path] = None) -> None:
     OUTPUT_FILE = os.path.join(RESULTS_FOLDER, os.getenv("OUTPUT_FILE", "grades_result.json"))
 
 
+# Version of the results-file layout, written into every results file. Files
+# without it predate the field and are read as version 1, which is the same
+# layout; bump it when a change would make old readers misread new files.
+RESULTS_SCHEMA_VERSION = 1
+
 # Written by the splitter when a student did not answer a question. Kept as a
 # constant so the grader can recognise it instead of sending the literal
 # placeholder to the model as if it were an answer.

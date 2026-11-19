@@ -565,6 +565,14 @@ class ReviewSession:
         self.path = Path(path)
         self.reviewer = reviewer
         self.data: Dict[str, Any] = json.loads(self.path.read_text(encoding="utf-8"))
+        from .config import RESULTS_SCHEMA_VERSION
+
+        version = int(self.data.get("schema_version", 1))
+        if version > RESULTS_SCHEMA_VERSION:
+            raise ValueError(
+                f"{path} was written by a newer ta-grader (results schema {version}); "
+                f"this version reads up to {RESULTS_SCHEMA_VERSION}. Upgrade to review it."
+            )
         self.mtime = self.path.stat().st_mtime
         self.format = detect_format(self.data)
         self.state_path = self.path.with_suffix(".review.json")

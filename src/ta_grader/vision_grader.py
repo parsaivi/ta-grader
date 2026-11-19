@@ -53,6 +53,7 @@ from .config import (
     POSTURE,
     POSTURES_FOLDER,
     QUESTION_PARTS,
+    RESULTS_SCHEMA_VERSION,
     TAG_SCHEME,
     TAGSETS_FOLDER,
     get_client,
@@ -921,6 +922,7 @@ def save_results(
             },
         }
 
+    output = {"schema_version": RESULTS_SCHEMA_VERSION, **output}
     tmp = f"{filepath}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
