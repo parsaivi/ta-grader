@@ -10,6 +10,8 @@ No API key or network access is needed -- the LLM is stubbed out.
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from ta_grader import config
 from ta_grader.assurance import (
     LEGIBILITY_ALIASES,
@@ -43,7 +45,16 @@ from ta_grader.smart_pdf_extractor import fix_rtl_text, is_rtl_line
 from ta_grader.tagging import load_tag_scheme, tag_scheme_from_dict
 
 # These tests come from a Persian/English course, and exercise both packs.
+# Set per test: other test modules reload config, which would reset it.
 config.LANGUAGES = ["en", "fa"]
+
+
+@pytest.fixture(autouse=True)
+def _persian_and_english():
+    saved = config.LANGUAGES
+    config.LANGUAGES = ["en", "fa"]
+    yield
+    config.LANGUAGES = saved
 
 # --- Grade parsing ------------------------------------------------------------
 
