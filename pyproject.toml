@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ta-grader"
+version = "0.1.0"
+description = "Grade homework PDFs with two LLMs and review only what they disagree on."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Parsa Malekian" }]
+requires-python = ">=3.10"
+keywords = ["grading", "llm", "education", "teaching-assistant", "llm-as-judge"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Education",
+    "Topic :: Education",
+]
+dependencies = [
+    "PyMuPDF>=1.23",
+    "openai>=1.0",
+    "python-dotenv>=1.0",
+    "tqdm>=4.60",
+    "requests>=2.28",
+    "tomli>=2.0; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+review = ["streamlit>=1.30"]
+dev = ["pytest>=7", "ruff>=0.5", "streamlit>=1.30"]
+
+[project.scripts]
+ta-grader = "ta_grader.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ta_grader = ["data/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

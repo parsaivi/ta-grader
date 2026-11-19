@@ -1,0 +1,22 @@
+{
+  "key": "technique",
+  "title": "Proof technique",
+  "field": "TECHNIQUES",
+  "instruction": "Separately, label which proof technique each answer used.",
+  "labels": [
+    {"name": "direct", "marker": "D", "description": "a direct derivation from the hypotheses"},
+    {"name": "induction", "marker": "I", "description": "induction over a parameter, including strong induction"},
+    {"name": "contradiction", "marker": "C", "description": "assumes the negation and derives a contradiction"},
+    {"name": "contrapositive", "marker": "P", "description": "proves the contrapositive instead"},
+    {"name": "construction", "marker": "X", "description": "exhibits an explicit witness or algorithm"},
+    {"name": "other", "marker": "o", "description": "an argument that fits none of the above"}
+  ],
+  "aliases": {
+    "stronginduction": "induction",
+    "byinduction": "induction",
+    "reductio": "contradiction"
+  },
+  "notes": [
+    "Label what the student actually did, not what the reference solution does."
+  ]
+}

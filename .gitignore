@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+.env
+.pytest_cache/
+.ruff_cache/
+
+# Student data never belongs in this repo. Course data lives in a workspace
+# made by `ta-grader init`, outside it. These are a second line of defence.
+students*/
+submissions/
+results/
+.work/
+answers/
+questions/
+grades_*.json
+grades_*.jsonl
+grades_*.csv
+*.review.json
+*.review.jsonl
+*.json.tmp

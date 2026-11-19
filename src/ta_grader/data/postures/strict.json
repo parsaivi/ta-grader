@@ -1,0 +1,16 @@
+{
+  "key": "strict",
+  "title": "Strict",
+  "description": "Exacting marking: borderline answers round down, the result must actually be correct, and syntax is graded. Note that presentation and language stay ignored -- strictness is about correctness, never about how the work looks or which language it is in.",
+  "unattempted": "zero",
+  "choices": {
+    "boundary_rule": "down",
+    "near_miss": "proportional",
+    "approach_vs_result": "result",
+    "minor_errors": "full",
+    "multiple_attempts": "last",
+    "ambiguous": "penalise",
+    "presentation": "ignore",
+    "language": "ignore"
+  }
+}

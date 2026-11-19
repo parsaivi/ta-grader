@@ -1,0 +1,31 @@
+# The review console's theme, and the reason it is pinned rather than left to
+# Streamlit: with no theme set, Streamlit follows the browser's dark-mode
+# preference, and the console then renders near-white input text on the
+# design's paper-white surfaces. A reviewer could not read the grade they had
+# just typed. The console is a light, paper-coloured surface by design -- the
+# submission it shows is a scan of white paper -- so the theme says so.
+#
+# Values match the design tokens at the top of `review_app.py`. Change both or
+# neither.
+
+[theme]
+base = "light"
+primaryColor = "#4a4fbf"              # the indigo accent, oklch(0.52 0.13 264)
+backgroundColor = "#f2f1ee"           # canvas
+secondaryBackgroundColor = "#fbfaf8"  # raised surfaces
+textColor = "#1c1b18"                 # ink
+linkColor = "#4a4fbf"
+borderColor = "#e4e2dc"               # hairline
+font = "IBM Plex Sans, IBM Plex Sans Arabic, system-ui, sans-serif"
+codeFont = "IBM Plex Mono, ui-monospace, monospace"
+
+[theme.sidebar]
+backgroundColor = "#fbfaf8"
+
+[server]
+# The console reads submissions and writes marks; nothing here should be
+# reachable from outside the machine it runs on.
+address = "localhost"
+
+[browser]
+gatherUsageStats = false

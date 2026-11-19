@@ -1,0 +1,16 @@
+{
+  "key": "lenient",
+  "title": "Lenient",
+  "description": "Generous marking: a materially correct answer gets full marks regardless of how it was written, surface slips cost nothing, and borderline answers round up. Appropriate for early-term or low-weight assignments where the aim is to reward understanding rather than precision.",
+  "unattempted": "zero",
+  "choices": {
+    "boundary_rule": "up",
+    "near_miss": "full",
+    "approach_vs_result": "approach",
+    "minor_errors": "ignore",
+    "multiple_attempts": "best",
+    "ambiguous": "favour",
+    "presentation": "ignore",
+    "language": "ignore"
+  }
+}

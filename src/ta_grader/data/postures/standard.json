@@ -1,0 +1,16 @@
+{
+  "key": "standard",
+  "title": "Standard",
+  "description": "Balanced marking. The same choices as the built-in default, written out so a round can name its posture explicitly in the results file.",
+  "unattempted": "zero",
+  "choices": {
+    "boundary_rule": "nearest",
+    "near_miss": "band_down",
+    "approach_vs_result": "balanced",
+    "minor_errors": "small",
+    "multiple_attempts": "last",
+    "ambiguous": "flag",
+    "presentation": "ignore",
+    "language": "ignore"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "key": "constructs",
+  "title": "SQL construct labels",
+  "field": "CONSTRUCTS",
+  "instruction": "Separately, label which SQL constructs each answer used.",
+  "labels": [
+    {
+      "name": "none",
+      "marker": ".",
+      "description": "neither; the query is written with joins only"
+    },
+    {
+      "name": "cte",
+      "marker": "C",
+      "description": "uses `WITH ... AS (...)`, including `WITH RECURSIVE`"
+    },
+    {
+      "name": "subquery",
+      "marker": "S",
+      "description": "uses a nested SELECT: `IN (SELECT ...)`, `EXISTS (SELECT ...)`, `= (SELECT ...)`, a scalar subquery, or `FROM (SELECT ...)`"
+    },
+    {
+      "name": "cte+subquery",
+      "marker": "B",
+      "description": "uses both"
+    }
+  ],
+  "aliases": {
+    "subquery+cte": "cte+subquery",
+    "both": "cte+subquery"
+  },
+  "notes": [
+    "`JOIN` of any kind, `SELECT DISTINCT`, `CASE WHEN`, a top-level `UNION`/`UNION ALL` between same-level SELECTs, `GROUP BY`/`HAVING` without a nested SELECT, `ORDER BY`, `LIMIT`, and constant lists like `IN ('a','b')` are all `none`.",
+    "Quote the line verbatim when you label an answer `cte` or `subquery`."
+  ]
+}
